@@ -232,7 +232,7 @@ After each review, rate your recall:
 ---
 
 ## 🔮 Roadmap
-kkkkkkkkkkkkkkkkkkkkk
+
 - [ ] Codeforces / CodeChef / AtCoder support
 - [ ] Cloud sync with Supabase / Firebase
 - [ ] User accounts & cross-device sync
