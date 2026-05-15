@@ -1,0 +1,28 @@
+/* DSA Copilot Content Script Styles
+ * Scoped to #dsa-copilot-root to avoid leaking into LeetCode
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+#dsa-copilot-root * {
+  box-sizing: border-box;
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#dsa-copilot-root ::-webkit-scrollbar {
+  width: 4px;
+}
+
+#dsa-copilot-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#dsa-copilot-root ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 99px;
+}
+
+#dsa-copilot-root ::selection {
+  background: rgba(9, 210, 245, 0.2);
+}
