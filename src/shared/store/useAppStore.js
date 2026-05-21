@@ -80,6 +80,9 @@ const useAppStore = create(
       userProfile: { xp: 0, level: 1, badges: [], dailyGoal: 3 },
 
       loadStreak: async () => {
+  // First check if streak should be reset (missed a day)
+        await problemService.checkAndResetStreak();
+
         const [streak, profile] = await Promise.all([
           problemService.getStreak(),
           problemService.getUserProfile(),

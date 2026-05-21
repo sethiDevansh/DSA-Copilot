@@ -280,12 +280,14 @@ async function updateStreak() {
   const streak   = await getStreak();
   const todayStr = today();
 
-  if (streak.lastDate === todayStr) return streak;
+  if (streak.lastDate === todayStr) return streak; // already solved today
 
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().split('T')[0];
 
+  // If last solve was yesterday → extend streak
+  // If last solve was before yesterday → reset to 1 (solved today)
   const newCurrent = streak.lastDate === yesterdayStr ? streak.current + 1 : 1;
   const newStreak  = {
     current:  newCurrent,
@@ -295,6 +297,37 @@ async function updateStreak() {
 
   await storageService.set(STORAGE_KEYS.STREAK, newStreak);
   return newStreak;
+}
+
+// ── NEW FUNCTION: call this on app load to check if streak should reset ──────
+async function checkAndResetStreak() {
+  const streak = await getStreak();
+
+  // No streak to reset
+  if (!streak.lastDate || streak.current === 0) return streak;
+
+  const todayStr = today();
+
+  // Already solved today — streak is fine
+  if (streak.lastDate === todayStr) return streak;
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  // Last solve was yesterday — streak is still alive, just hasn't been extended yet
+  if (streak.lastDate === yesterdayStr) return streak;
+
+  // Last solve was 2+ days ago — RESET streak to 0
+  const resetStreak = {
+    current:  0,
+    best:     streak.best,      // keep best streak record
+    lastDate: streak.lastDate,  // keep last date for history
+  };
+
+  await storageService.set(STORAGE_KEYS.STREAK, resetStreak);
+  console.log('[DSA Copilot] Streak reset — last solve was', streak.lastDate);
+  return resetStreak;
 }
 
 // ─── XP / Gamification ────────────────────────────────────────────────────────
@@ -354,6 +387,7 @@ export const problemService = {
   getWeakTopics,
   getStreak,
   updateStreak,
+  checkAndResetStreak, 
   getUserProfile,
   awardXP,
   searchProblems,

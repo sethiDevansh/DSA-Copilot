@@ -17,12 +17,22 @@ export default function DashboardApp() {
   const { loadProblems, loadMistakes, loadStreak, loadInterviewHistory, ui, theme, initTheme } = useAppStore();
 
   useEffect(() => {
-    loadProblems();
-    loadMistakes();
-    loadStreak();
-    loadInterviewHistory();
-    initTheme();
-  }, []);
+  loadProblems();
+  loadMistakes();
+  loadStreak();
+  loadInterviewHistory();
+  initTheme();
+
+  // Re-check streak whenever user focuses back on this tab
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      loadStreak();
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+}, []);
 
   const isDark = theme === 'dark';
 
