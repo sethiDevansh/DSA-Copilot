@@ -8,32 +8,46 @@ export function AnalysisPanel({ problem }) {
   const [error, setError]       = useState(null);
   const [mode, setMode]         = useState('analysis'); // 'analysis' | 'explain' | 'patterns'
 
-  async function analyze() {
-    setLoading(true);
-    setError(null);
-    setAnalysis(null);
-    try {
-      const code     = extractCodeFromEditor();
-      const language = extractSelectedLanguage();
-      if (!code?.trim()) throw new Error('No code found in editor. Write your solution first.');
+ async function analyze() {
+  setLoading(true);
+  setError(null);
+  setAnalysis(null);
 
-      let result;
-      if (mode === 'analysis') {
-        result = await aiService.analyzeSolution({ problem, code, language });
-      } else if (mode === 'explain') {
-        result = await aiService.explainSolution({ problem, code, language });
-      } else {
-        const r = await aiService.detectPatterns({ problem, code });
-        result = r.explanation + '\n\nPatterns: ' + (r.patterns?.join(', ') ?? 'None detected');
-      }
+  try {
+    // Try reading code — wait a moment for Monaco to be ready if needed
+    let code = extractCodeFromEditor();
 
-      setAnalysis(result);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    // If empty, wait 1 second and retry (Monaco may still be initializing)
+    if (!code?.trim()) {
+      await new Promise((r) => setTimeout(r, 1000));
+      code = extractCodeFromEditor();
     }
+
+    if (!code?.trim()) {
+      throw new Error(
+        'Could not read code from editor. Make sure you have written your solution, then try again.'
+      );
+    }
+
+    const language = extractSelectedLanguage();
+
+    let result;
+    if (mode === 'analysis') {
+      result = await aiService.analyzeSolution({ problem, code, language });
+    } else if (mode === 'explain') {
+      result = await aiService.explainSolution({ problem, code, language });
+    } else {
+      const r = await aiService.detectPatterns({ problem, code });
+      result = r.explanation + '\n\nPatterns: ' + (r.patterns?.join(', ') ?? 'None detected');
+    }
+
+    setAnalysis(result);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
   }
+}
 
   const MODES = [
     { id: 'analysis', label: 'Analyze',  icon: '⚡' },

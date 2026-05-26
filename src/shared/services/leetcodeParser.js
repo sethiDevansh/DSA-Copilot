@@ -132,8 +132,8 @@ const KNOWN_LANGUAGES = [
 ];
 
 export function extractSelectedLanguage() {
-  // Strategy 1: LeetCode's current language selector button (most reliable)
-  // It renders as a button in the editor toolbar with just the language name
+  // Strategy 1: LeetCode's current language button in toolbar
+  // It's a button showing "C++" / "Python3" etc. near the top of the editor
   const allButtons = document.querySelectorAll('button');
   for (const btn of allButtons) {
     const text = btn.textContent?.trim();
@@ -142,49 +142,36 @@ export function extractSelectedLanguage() {
     }
   }
 
-  // Strategy 2: look for select/dropdown elements
-  const selects = document.querySelectorAll('select');
-  for (const sel of selects) {
-    const val = sel.options[sel.selectedIndex]?.text?.trim();
-    if (val && KNOWN_LANGUAGES.includes(val)) return val;
-  }
-
-  // Strategy 3: look for any element with a known language as its exact text
-  const allEls = document.querySelectorAll('div, span, p');
-  for (const el of allEls) {
-    const text = el.childNodes.length === 1 ? el.textContent?.trim() : null;
-    if (text && KNOWN_LANGUAGES.includes(text)) return text;
-  }
-
-  // Strategy 4: Monaco editor language mode
+  // Strategy 2: Monaco editor language ID
   if (window.monaco?.editor) {
-    const models = window.monaco.editor.getModels();
-    if (models.length > 0) {
-      const langId = models[0].getLanguageId?.();
-      if (langId) {
-        // Map Monaco language IDs to display names
-        const monacoMap = {
-          cpp:        'C++',
-          java:       'Java',
-          python:     'Python3',
-          javascript: 'JavaScript',
-          typescript: 'TypeScript',
-          csharp:     'C#',
-          go:         'Go',
-          rust:       'Rust',
-          swift:      'Swift',
-          kotlin:     'Kotlin',
-          ruby:       'Ruby',
-          scala:      'Scala',
-          c:          'C',
-          php:        'PHP',
-        };
-        if (monacoMap[langId]) return monacoMap[langId];
+    try {
+      const models = window.monaco.editor.getModels();
+      if (models.length > 0) {
+        const langId = models[0].getLanguageId?.();
+        if (langId) {
+          const monacoMap = {
+            cpp:        'C++',
+            java:       'Java',
+            python:     'Python3',
+            javascript: 'JavaScript',
+            typescript: 'TypeScript',
+            csharp:     'C#',
+            go:         'Go',
+            rust:       'Rust',
+            swift:      'Swift',
+            kotlin:     'Kotlin',
+            ruby:       'Ruby',
+            scala:      'Scala',
+            c:          'C',
+            php:        'PHP',
+          };
+          if (monacoMap[langId]) return monacoMap[langId];
+        }
       }
-    }
+    } catch {/* try next */}
   }
 
-  // Strategy 5: URL query param (?lang=cpp)
+  // Strategy 3: URL query param (?lang=cpp)
   const urlLang = new URLSearchParams(window.location.search).get('lang');
   if (urlLang) {
     const urlMap = {
@@ -196,25 +183,88 @@ export function extractSelectedLanguage() {
     if (urlMap[urlLang]) return urlMap[urlLang];
   }
 
+  // Strategy 4: Any element with exact language name text
+  const allEls = document.querySelectorAll('div, span, p');
+  for (const el of allEls) {
+    const text = el.childNodes.length === 1 ? el.textContent?.trim() : null;
+    if (text && KNOWN_LANGUAGES.includes(text)) return text;
+  }
+
   return 'Unknown';
 }
 
 export function extractCodeFromEditor() {
-  // Monaco editor (LeetCode uses Monaco)
+  // Strategy 1: Monaco editor — LeetCode's primary editor
+  // Try multiple ways to access Monaco as LeetCode loads it differently
   if (window.monaco?.editor) {
-    const models = window.monaco.editor.getModels();
-    if (models.length > 0) return models[0].getValue();
+    try {
+      const models = window.monaco.editor.getModels();
+      if (models.length > 0) {
+        const code = models[0].getValue();
+        if (code?.trim()) return code;
+      }
+    } catch {/* try next */}
+
+    try {
+      // Get active editor instance directly
+      const editors = window.monaco.editor.getEditors?.();
+      if (editors?.length > 0) {
+        const code = editors[0].getValue();
+        if (code?.trim()) return code;
+      }
+    } catch {/* try next */}
   }
 
-  // CodeMirror fallback
-  const cmLines = document.querySelectorAll('.CodeMirror-line');
-  if (cmLines.length > 0) {
-    return Array.from(cmLines).map((l) => l.textContent).join('\n');
-  }
+  // Strategy 2: Access Monaco via the editor DOM container
+  try {
+    const editorEl = document.querySelector('.view-lines');
+    if (editorEl) {
+      // Get the editor instance attached to the DOM element
+      const monacoInstance =
+        editorEl._modelData?.viewModel?.model ||
+        editorEl.__monaco_context__?.editor;
+      if (monacoInstance?.getValue) {
+        const code = monacoInstance.getValue();
+        if (code?.trim()) return code;
+      }
+    }
+  } catch {/* try next */}
 
-  // Textarea fallback
-  const textarea = document.querySelector('textarea.inputarea');
-  if (textarea) return textarea.value;
+  // Strategy 3: Read visible lines from Monaco DOM (most reliable fallback)
+  try {
+    const viewLines = document.querySelectorAll('.view-lines .view-line');
+    if (viewLines.length > 0) {
+      const lines = Array.from(viewLines).map((line) => {
+        // Each view-line contains spans with the code tokens
+        return Array.from(line.querySelectorAll('span')).map((s) => s.textContent).join('');
+      });
+      const code = lines.join('\n').trim();
+      if (code) return code;
+    }
+  } catch {/* try next */}
+
+  // Strategy 4: CodeMirror fallback (older LeetCode)
+  try {
+    const cmLines = document.querySelectorAll('.CodeMirror-line');
+    if (cmLines.length > 0) {
+      const code = Array.from(cmLines).map((l) => l.textContent).join('\n');
+      if (code?.trim()) return code;
+    }
+  } catch {/* try next */}
+
+  // Strategy 5: Textarea fallback
+  try {
+    const textarea = document.querySelector('textarea.inputarea');
+    if (textarea?.value?.trim()) return textarea.value;
+  } catch {/* try next */}
+
+  // Strategy 6: Any textarea with code-like content
+  try {
+    const textareas = document.querySelectorAll('textarea');
+    for (const ta of textareas) {
+      if (ta.value?.trim().length > 10) return ta.value;
+    }
+  } catch {/* try next */}
 
   return '';
 }
